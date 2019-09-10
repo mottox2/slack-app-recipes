@@ -1,9 +1,9 @@
 const functions = require('firebase-functions')
 const getChannelRanking = require('./src/channel-ranking')
-const { commands } = require('./src/lunch-slot')
 const axios = require('axios')
 
-const { PubSub } = require('@google-cloud/pubsub')
+const { start, stop } = require('./src/timer')
+const { publish } = require('./src/pubsub')
 
 const admin = require('firebase-admin')
 admin.initializeApp()
@@ -13,22 +13,28 @@ exports.channelRanking = functions.https.onRequest(async (req, res) => {
   res.send(rankingMessage)
 })
 
+const TIMER_START = 'timer-start'
+const TIMER_END = 'timer-end'
+
 exports.commands = functions.https.onRequest(async (req, res) => {
   const body = req.body
   const { text, response_url } = body
   const [subCommand, ...args] = text.split(' ')
   switch (subCommand) {
-    case 'add':
-      publish({
-        type: REGISTER,
-        payload: {
-          response_url,
-          name: args.join('')
-        }
+    case 'start':
+      await publish({
+        type: TIMER_START,
+        payload: { response_url }
+      })
+      break
+    case 'stop':
+      await publish({
+        type: TIMER_END,
+        payload: { response_url }
       })
       break
     default:
-      res.status(200).end({
+      res.status(200).json({
         text: `${subCommand} is not a valid command.`
       })
       return
@@ -36,16 +42,12 @@ exports.commands = functions.https.onRequest(async (req, res) => {
   res.status(200).end()
 })
 
-const REGISTER = 'slot-add'
-
-const publish = async data => {
-  const pubsub = new PubSub()
-  const messageData = data
-  console.log(messageData)
-  const messageBuffer = Buffer.from(JSON.stringify(messageData), 'utf8')
-  const topic = pubsub.topic('slack-task')
-  console.log(messageBuffer)
-  await topic.publish(messageBuffer)
+const respond = async (response_url, message) => {
+  console.log(response_url, message)
+  if (!response_url) {
+    return
+  }
+  await axios.post(response_url, message)
 }
 
 exports.runTask = functions.pubsub.topic('slack-task').onPublish(async message => {
@@ -55,20 +57,18 @@ exports.runTask = functions.pubsub.topic('slack-task').onPublish(async message =
   } catch (e) {
     console.error('PubSub message was not JSON', e)
   }
-
-  switch (data.type) {
-    case REGISTER:
-      await admin
-        .firestore()
-        .collection('restaurants')
-        .add({ name: data.payload.name })
+  const { type, payload } = data
+  console.log(type)
+  let result = {}
+  switch (type) {
+    case TIMER_START:
+      result = await start(payload)
+      await respond(payload.response_url, result)
       break
-  }
-
-  if (data.response_url) {
-    axios.post(data.response_url, {
-      text: 'success'
-    })
+    case TIMER_END:
+      result = await stop(payload)
+      await respond(payload.response_url, result)
+      break
   }
 })
 
