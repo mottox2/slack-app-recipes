@@ -9,47 +9,45 @@ const recipeListMessage = sortedChannels => {
   }
 }
 
-const main = async () => {
-  const token = process.env.SLACK_TOKEN || functions.config().slack.token
+const run = async () => {
+  const token = functions.config().slack.token
   const client = new WebClient(token)
 
-  const conversations = await client.conversations
+  const { channels } = await client.conversations
     .list({
       limit: 10, // max to 1000
       exclude_archived: true,
-      exclude_members: true,
       types: 'public_channel'
     })
     .catch(e => {
       console.error(JSON.stringify(e, null, 2))
       throw e
     })
-  const channels = conversations.channels
 
-  const channleCounts = []
+  const channelsWithCount = []
   for (let i = 0; i < channels.length; i++) {
     const channel = channels[i]
-    if (['general', 'random'].includes(channel.name)) {
-      console.log(`[skip] ${channel.name}`)
+    const { id, name } = channel
+    if (['general', 'random'].includes(name)) {
+      console.log(`[skip] ${name}`)
       continue
     }
-    const { id, name } = channel
     /* eslint-disable-next-line */
-    await sleep(1000)
+    await sleep(2000)
     /* eslint-disable-next-line */
-    const res = await client.channels
+    const { messages } = await client.channels
       .history({
         channel: id,
-        count: 10
+        count: 10 // max to 1000
       })
       .catch(e => {
         throw e
       })
 
-    const count = res.messages.filter(message => {
+    const count = messages.filter(message => {
       return message.ts > new Date(new Date() - 1000 * 60 * 60 * 24 * 28) / 1000
     }).length
-    channleCounts.push({
+    channelsWithCount.push({
       id,
       name,
       count
@@ -57,14 +55,15 @@ const main = async () => {
     console.log(`${id}: ${name} => ${count}`)
   }
 
-  const sortedChannels = channleCounts.sort((channel1, channel2) => channel2.count - channel1.count)
+  const sortedChannels = channelsWithCount.sort((channel1, channel2) => channel2.count - channel1.count)
   console.log(sortedChannels)
   return recipeListMessage(sortedChannels)
 }
 
-module.exports = main
+module.exports = {
+  run
+}
 
 if (process.mainModule && process.mainModule.filename === __filename) {
-  console.log(functions.config())
-  console.log(main())
+  run()
 }
