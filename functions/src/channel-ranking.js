@@ -59,6 +59,6 @@ module.exports = {
   run
 }
 
-if (process.mainModule && process.mainModule.filename === __filename) {
+if (require.main === module) {
   run()
 }
