@@ -9,20 +9,17 @@ const recipeListMessage = sortedChannels => {
   }
 }
 
+const targetChannel = '#random'
+
 const run = async () => {
   const token = functions.config().slack.token
   const client = new WebClient(token)
 
-  const { channels } = await client.conversations
-    .list({
-      limit: 10, // max to 1000
-      exclude_archived: true,
-      types: 'public_channel'
-    })
-    .catch(e => {
-      console.error(JSON.stringify(e, null, 2))
-      throw e
-    })
+  const { channels } = await client.conversations.list({
+    limit: 10, // max to 1000
+    exclude_archived: true,
+    types: 'public_channel'
+  })
 
   const channelsWithCount = []
   for (let i = 0; i < channels.length; i++) {
@@ -33,31 +30,29 @@ const run = async () => {
       continue
     }
     /* eslint-disable-next-line */
-    await sleep(2000)
+    await sleep(1000)
     /* eslint-disable-next-line */
-    const { messages } = await client.channels
-      .history({
-        channel: id,
-        count: 10 // max to 1000
-      })
-      .catch(e => {
-        throw e
-      })
+    const { messages } = await client.channels.history({
+      channel: id,
+      count: 10 // max to 1000
+    })
 
     const count = messages.filter(message => {
       return message.ts > new Date(new Date() - 1000 * 60 * 60 * 24 * 28) / 1000
     }).length
-    channelsWithCount.push({
-      id,
-      name,
-      count
-    })
+    channelsWithCount.push({ id, name, count })
     console.log(`${id}: ${name} => ${count}`)
   }
 
-  const sortedChannels = channelsWithCount.sort((channel1, channel2) => channel2.count - channel1.count)
+  const sortedChannels = channelsWithCount.sort(
+    (channel1, channel2) => channel2.count - channel1.count
+  )
   console.log(sortedChannels)
-  return recipeListMessage(sortedChannels)
+
+  await client.chat.postMessage({
+    channel: targetChannel,
+    ...recipeListMessage(sortedChannels)
+  })
 }
 
 module.exports = {
