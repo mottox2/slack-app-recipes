@@ -1,5 +1,5 @@
 const functions = require('firebase-functions')
-const getChannelRanking = require('./src/channel-ranking')
+const channelRanking = require('./src/channel-ranking')
 const axios = require('axios')
 
 const { start, stop } = require('./src/timer')
@@ -8,9 +8,8 @@ const { publish } = require('./src/pubsub')
 const admin = require('firebase-admin')
 admin.initializeApp()
 
-exports.channelRanking = functions.https.onRequest(async (req, res) => {
-  const rankingMessage = await getChannelRanking()
-  res.send(rankingMessage)
+exports.channelRanking = functions.pubsub.schedule('every 24 hours').onRun(async context => {
+  await channelRanking.run()
 })
 
 const TIMER_START = 'timer-start'
