@@ -16,7 +16,7 @@ const run = async () => {
   const client = new WebClient(token)
 
   const { channels } = await client.conversations.list({
-    limit: 10, // max to 1000
+    limit: 50, // max to 1000
     exclude_archived: true,
     types: 'public_channel'
   })
@@ -29,9 +29,9 @@ const run = async () => {
       console.log(`[skip] ${name}`)
       continue
     }
-    /* eslint-disable-next-line */
+    /* eslint-disable-next-line no-await-in-loop */
     await sleep(1000)
-    /* eslint-disable-next-line */
+    /* eslint-disable-next-line no-await-in-loop */
     const { messages } = await client.channels.history({
       channel: id,
       count: 10 // max to 1000
