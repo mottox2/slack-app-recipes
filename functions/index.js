@@ -22,9 +22,15 @@ exports.commands = functions.https.onRequest(async (req, res) => {
 
   switch (command) {
     case '/tracker':
+      await axios.post(body.response_url, {
+        text: ':clock1: Loading'
+      })
       commandTracker.commands(req, res)
       break
     default:
+      await axios.post(body.response_url, {
+        text: ':clock1: Loading...'
+      })
       res.status(200).json({
         text: `${command} is not a valid command.`
       })
@@ -54,11 +60,17 @@ exports.run = functions.pubsub.topic('slack-task').onPublish(async message => {
   switch (type) {
     case TIMER_START:
       result = await commandTracker.start(payload)
-      await respond(payload.response_url, result)
+      await respond(payload.response_url, {
+        ...result,
+        replace_original: true
+      })
       break
     case TIMER_END:
       result = await commandTracker.stop(payload)
-      await respond(payload.response_url, result)
+      await respond(payload.response_url, {
+        ...result,
+        replace_original: true
+      })
       break
   }
 })
