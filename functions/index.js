@@ -1,9 +1,10 @@
 const functions = require('firebase-functions')
-const channelRanking = require('./src/channel-ranking')
 const axios = require('axios')
 
-const { start, stop } = require('./src/timer')
 const { publish } = require('./src/pubsub')
+
+const channelRanking = require('./src/channel-ranking')
+const commandTracker = require('./src/command-tracker')
 
 const admin = require('firebase-admin')
 admin.initializeApp()
@@ -17,24 +18,15 @@ const TIMER_END = 'timer-end'
 
 exports.commands = functions.https.onRequest(async (req, res) => {
   const body = req.body
-  const { text, response_url } = body
-  const [subCommand, ...args] = text.split(' ')
-  switch (subCommand) {
-    case 'start':
-      await publish({
-        type: TIMER_START,
-        payload: { response_url }
-      })
-      break
-    case 'stop':
-      await publish({
-        type: TIMER_END,
-        payload: { response_url }
-      })
+  const command = body.command
+
+  switch (command) {
+    case '/tracker':
+      commandTracker.commands(req, res)
       break
     default:
       res.status(200).json({
-        text: `${subCommand} is not a valid command.`
+        text: `${command} is not a valid command.`
       })
       return
   }
@@ -49,7 +41,7 @@ const respond = async (response_url, message) => {
   await axios.post(response_url, message)
 }
 
-exports.runTask = functions.pubsub.topic('slack-task').onPublish(async message => {
+exports.run = functions.pubsub.topic('slack-task').onPublish(async message => {
   let data = null
   try {
     data = message.json
@@ -61,20 +53,12 @@ exports.runTask = functions.pubsub.topic('slack-task').onPublish(async message =
   let result = {}
   switch (type) {
     case TIMER_START:
-      result = await start(payload)
+      result = await commandTracker.start(payload)
       await respond(payload.response_url, result)
       break
     case TIMER_END:
-      result = await stop(payload)
+      result = await commandTracker.stop(payload)
       await respond(payload.response_url, result)
       break
   }
-})
-
-exports.publish = functions.https.onRequest(async (req, res) => {
-  const body = req.body
-  await publish({
-    response_url: body.response_url
-  })
-  res.status(200).end()
 })

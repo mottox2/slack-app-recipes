@@ -1,4 +1,6 @@
 const admin = require('firebase-admin')
+const { publish } = require('./pubsub')
+const axios = require('axios')
 
 const collectionName = 'intervals'
 
@@ -16,29 +18,55 @@ const getLastRecord = async () => {
   return document
 }
 
+// Commands
+const TIMER_START = 'timer-start'
+const TIMER_END = 'timer-end'
+
+const commands = async (req, res) => {
+  const { text, response_url } = req.body
+  const [subCommand, ...args] = text.split(' ')
+  switch (subCommand) {
+    case 'start':
+      await publish({
+        type: TIMER_START,
+        payload: { response_url }
+      })
+      break
+    case 'stop':
+      await publish({
+        type: TIMER_END,
+        payload: { response_url }
+      })
+      break
+    case '':
+      res.status(200).json({
+        text: 'Subcommand is not found'
+      })
+      break
+    default:
+      res.status(200).json({
+        text: `${subCommand} is not a valid command.`
+      })
+      return
+  }
+  res.status(200).end()
+}
+
 // Messages
 const startMessage = () => {
-  return {
-    text: '計測を開始しました'
-  }
+  return { text: ':clock1: 計測を開始しました' }
 }
 
 const invalidStartMessage = () => {
-  return {
-    text: ':x: まだ完了していないトラックがあります'
-  }
+  return { text: ':x: まだ完了していないトラックがあります' }
 }
 
 const stopMessage = () => {
-  return {
-    text: '計測を完了しました'
-  }
+  return { text: ':clock1: 計測を完了しました' }
 }
 
 const invaildStopMessage = () => {
-  return {
-    text: ':x: 計測中のトラックがありません'
-  }
+  return { text: ':x: 計測中のトラックがありません' }
 }
 
 // Actions
@@ -60,12 +88,15 @@ const start = async () => {
   return message
 }
 
-const stop = async () => {
+const stop = async ({ response_url }) => {
   const lastRecord = await getLastRecord()
   // 最後の記録があるのに、終わっているときは警告を出す
   if (lastRecord && lastRecord.data().endedAt) {
     return invaildStopMessage()
   }
+  // const res = await axios.post(response_url, message)
+  // console.log(Object.keys(res))
+  // console.log(res.data)
   await lastRecord.ref.update({
     endedAt: admin.firestore.FieldValue.serverTimestamp()
   })
@@ -74,6 +105,14 @@ const stop = async () => {
 }
 
 module.exports = {
+  commands,
   start,
   stop
+}
+
+if (require.main === module) {
+  admin.initializeApp()
+  stop({
+    response_url: 'https://hooks.slack.com/commands/T03B6P05P/756257995505/7X07ZYyJjyzcKJxrquIXjg0K'
+  })
 }
