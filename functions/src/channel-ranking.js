@@ -44,9 +44,9 @@ const run = async () => {
     console.log(`${id}: ${name} => ${count}`)
   }
 
-  const sortedChannels = channelsWithCount.sort(
-    (channel1, channel2) => channel2.count - channel1.count
-  )
+  const sortedChannels = channelsWithCount
+    .sort((channel1, channel2) => channel2.count - channel1.count)
+    .slice(0, 5)
   console.log(sortedChannels)
 
   await client.chat.postMessage({

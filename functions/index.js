@@ -14,26 +14,18 @@ exports.channelRanking = functions.pubsub.schedule('every 24 hours').onRun(async
 })
 
 exports.commands = functions.https.onRequest(async (req, res) => {
-  const body = req.body
-  const command = body.command
+  const { command } = req.body
 
   switch (command) {
     case '/tracker':
-      await axios.post(body.response_url, {
-        text: ':clock1: Loading'
-      })
       commandTracker.commands(req, res)
       break
     default:
-      await axios.post(body.response_url, {
-        text: ':clock1: Loading...'
-      })
       res.status(200).json({
         text: `${command} is not a valid command.`
       })
       return
   }
-  res.status(200).end()
 })
 
 const respond = async (response_url, message) => {

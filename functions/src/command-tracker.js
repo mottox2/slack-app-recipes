@@ -20,7 +20,7 @@ const getLastRecord = async () => {
 
 // Commands
 const TIMER_START = 'timer-start'
-const TIMER_END = 'timer-end'
+const TIMER_STOP = 'timer-stop'
 
 const commands = async (req, res) => {
   const { text, response_url } = req.body
@@ -31,25 +31,22 @@ const commands = async (req, res) => {
         type: TIMER_START,
         payload: { response_url }
       })
+      res.status(200).end()
       break
     case 'stop':
       await publish({
-        type: TIMER_END,
+        type: TIMER_STOP,
         payload: { response_url }
       })
+      res.status(200).end()
       break
     case '':
-      res.status(200).json({
-        text: 'Subcommand is not found'
-      })
+      res.status(200).json({ text: 'Subcommand is not found' })
       break
     default:
-      res.status(200).json({
-        text: `${subCommand} is not a valid command.`
-      })
+      res.status(200).json({ text: `${subCommand} is not a valid command.` })
       return
   }
-  res.status(200).end()
 }
 
 // Messages
