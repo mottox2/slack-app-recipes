@@ -13,9 +13,6 @@ exports.channelRanking = functions.pubsub.schedule('every 24 hours').onRun(async
   await channelRanking.run()
 })
 
-const TIMER_START = 'timer-start'
-const TIMER_END = 'timer-end'
-
 exports.commands = functions.https.onRequest(async (req, res) => {
   const body = req.body
   const command = body.command
@@ -52,11 +49,11 @@ exports.run = functions.pubsub.topic('slack-task').onPublish(async message => {
   console.log(type)
   let result = {}
   switch (type) {
-    case TIMER_START:
+    case commandTracker.TIMER_START:
       result = await commandTracker.start(payload)
       await respond(payload.response_url, result)
       break
-    case TIMER_END:
+    case commandTracker.TIMER_STOP:
       result = await commandTracker.stop(payload)
       await respond(payload.response_url, result)
       break

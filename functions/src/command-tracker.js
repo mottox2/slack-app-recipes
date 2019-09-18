@@ -107,7 +107,9 @@ const stop = async ({ response_url }) => {
 module.exports = {
   commands,
   start,
-  stop
+  stop,
+  TIMER_START,
+  TIMER_STOP
 }
 
 if (require.main === module) {
